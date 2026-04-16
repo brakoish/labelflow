@@ -1,3 +1,5 @@
+'use client';
+
 import { LabelFormat } from '@/lib/types';
 
 interface FormatGridPreviewProps {
@@ -23,14 +25,22 @@ export default function FormatGridPreview({ format, className = '' }: FormatGrid
     verticalGap = 0
   } = format;
 
-  // Calculate scale to fit in preview
-  const previewWidth = 300;
-  const previewHeight = (sheetHeight / sheetWidth) * previewWidth;
-  const scale = previewWidth / sheetWidth;
+  // Scale factor for SVG preview
+  const scale = 20; // pixels per inch
+  const svgWidth = sheetWidth * scale;
+  const svgHeight = sheetHeight * scale;
 
   return (
-    <div className={`relative bg-white ${className}`} style={{ width: previewWidth, height: previewHeight }}>
-      <svg width={previewWidth} height={previewHeight} className="absolute inset-0">
+    <div className={className}>
+      <svg
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        className="w-full h-auto max-w-[180px] mx-auto"
+        style={{ aspectRatio: `${sheetWidth}/${sheetHeight}` }}
+      >
+        {/* Sheet background */}
+        <rect width={svgWidth} height={svgHeight} fill="#ffffff" stroke="#27272a" strokeWidth="1" />
+
+        {/* Labels grid */}
         {Array.from({ length: rows }).map((_, row) =>
           Array.from({ length: columns }).map((_, col) => {
             const x = (sideMargin + col * (labelWidth + horizontalGap)) * scale;
@@ -45,10 +55,11 @@ export default function FormatGridPreview({ format, className = '' }: FormatGrid
                 y={y}
                 width={w}
                 height={h}
-                fill="#DBEAFE"
-                stroke="#3B82F6"
-                strokeWidth="1"
-                rx="2"
+                fill="none"
+                stroke="#6366f1"
+                strokeWidth="0.8"
+                strokeDasharray="2,1"
+                rx="1"
               />
             );
           })

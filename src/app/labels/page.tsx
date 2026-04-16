@@ -1,27 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LabelDesign, LabelFormat } from '@/lib/types';
-import { getDesigns, deleteDesign, getFormatById } from '@/lib/store';
+import { useDesignsStore, useFormatsStore } from '@/lib/store';
+import { Plus, Copy, Trash2, FileText } from 'lucide-react';
+import Link from 'next/link';
 
 export default function LabelsPage() {
-  const [designs, setDesigns] = useState<LabelDesign[]>([]);
   const router = useRouter();
+  const { designs, loadDesigns, deleteDesign } = useDesignsStore();
+  const { formats, loadFormats, getFormatById } = useFormatsStore();
 
   useEffect(() => {
+    loadFormats();
     loadDesigns();
-  }, []);
+  }, [loadFormats, loadDesigns]);
 
-  const loadDesigns = () => {
-    setDesigns(getDesigns());
-  };
-
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (confirm('Are you sure you want to delete this label design?')) {
       deleteDesign(id);
-      loadDesigns();
     }
+  };
+
+  const handleDuplicate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement duplicate
+    alert('Duplicate feature coming soon!');
   };
 
   const handleOpen = (id: string) => {
@@ -37,87 +42,112 @@ export default function LabelsPage() {
   };
 
   return (
-    <div className="min-h-full bg-gray-950">
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">My Labels</h1>
-          <p className="text-gray-400">
-            Saved label designs. Click to open in the designer.
-          </p>
+    <div className="h-screen flex flex-col bg-zinc-950">
+      {/* Top bar */}
+      <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
+            ← Designer
+          </Link>
+          <div className="w-px h-6 bg-zinc-700" />
+          <h1 className="text-lg font-semibold text-white">My Labels</h1>
         </div>
 
+        <Link
+          href="/"
+          className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md flex items-center gap-2"
+        >
+          <Plus size={16} />
+          New Label
+        </Link>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-8">
         {designs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-              <span className="text-5xl">🏷️</span>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full">
+            <FileText className="w-20 h-20 text-zinc-700 mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">No saved labels yet</h2>
-            <p className="text-gray-400 mb-6">Create your first label in the Designer</p>
-            <button
-              onClick={() => router.push('/')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            <p className="text-zinc-400 mb-6">Create your first label in the Designer</p>
+            <Link
+              href="/"
+              className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors"
             >
               Go to Designer
-            </button>
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {designs.map((design) => {
-              const format = getFormatById(design.formatId);
-              return (
-                <div
-                  key={design.id}
-                  className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden hover:border-gray-700 transition-colors cursor-pointer group"
-                  onClick={() => handleOpen(design.id)}
-                >
-                  <div className="aspect-video bg-gray-800 flex items-center justify-center relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10" />
-                    <div className="relative text-center">
-                      <div className="text-6xl mb-2">🏷️</div>
-                      <div className="text-xs text-gray-400">
-                        {format?.labelWidth}" × {format?.labelHeight}"
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white font-medium">Open in Designer</span>
-                    </div>
-                  </div>
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {designs.map((design) => {
+                const format = getFormatById(design.formatId);
 
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-white mb-1 truncate">
-                      {design.name}
-                    </h3>
-                    <p className="text-sm text-gray-400 mb-3">
-                      Format: {format?.name || 'Unknown'}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>Updated {formatDate(design.updatedAt)}</span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // TODO: Implement duplicate
-                            alert('Duplicate feature coming soon!');
-                          }}
-                          className="px-2 py-1 hover:text-white transition-colors"
-                        >
-                          Duplicate
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(design.id);
-                          }}
-                          className="px-2 py-1 text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          Delete
-                        </button>
+                return (
+                  <div
+                    key={design.id}
+                    onClick={() => handleOpen(design.id)}
+                    className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden hover:border-indigo-500 transition-all cursor-pointer group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
+                      {design.thumbnail ? (
+                        <img
+                          src={design.thumbnail}
+                          alt={design.name}
+                          className="w-full h-full object-contain p-4"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-2" />
+                            <p className="text-xs text-zinc-500">
+                              {format?.labelWidth}" × {format?.labelHeight}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white font-medium text-sm">Open in Designer</span>
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-4">
+                      <h3 className="text-base font-semibold text-white mb-1 truncate">
+                        {design.name}
+                      </h3>
+                      <p className="text-sm text-zinc-400 mb-3">
+                        {format?.name || 'Unknown format'}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-500">
+                          {formatDate(design.updatedAt)}
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => handleDuplicate(design.id, e)}
+                            className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors"
+                            title="Duplicate"
+                          >
+                            <Copy size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(design.id, e)}
+                            className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

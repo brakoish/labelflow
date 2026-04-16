@@ -1,19 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LabelDesign, LabelFormat } from '@/lib/types';
-import { getDesigns, getFormatById } from '@/lib/store';
+import { useDesignsStore, useFormatsStore } from '@/lib/store';
+import { CSVRow } from '@/lib/types';
+import { Upload, Download, Printer, FileText } from 'lucide-react';
+import Link from 'next/link';
 
 export default function PrintPage() {
-  const [designs, setDesigns] = useState<LabelDesign[]>([]);
-  const [selectedDesign, setSelectedDesign] = useState<LabelDesign | null>(null);
+  const { designs, loadDesigns } = useDesignsStore();
+  const { loadFormats, getFormatById } = useFormatsStore();
+  const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
+  const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [quantityPerRow, setQuantityPerRow] = useState(1);
 
   useEffect(() => {
-    setDesigns(getDesigns());
-  }, []);
+    loadFormats();
+    loadDesigns();
+  }, [loadFormats, loadDesigns]);
+
+  const selectedDesign = designs.find((d) => d.id === selectedDesignId);
+  const selectedFormat = selectedDesign ? getFormatById(selectedDesign.formatId) : null;
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,13 +36,13 @@ export default function PrintPage() {
   };
 
   const parseCsv = (text: string) => {
-    const lines = text.split('\n').filter(line => line.trim());
+    const lines = text.split('\n').filter((line) => line.trim());
     if (lines.length === 0) return;
 
-    const headers = lines[0].split(',').map(h => h.trim());
-    const data = lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
-      const row: Record<string, string> = {};
+    const headers = lines[0].split(',').map((h) => h.trim());
+    const data = lines.slice(1).map((line) => {
+      const values = line.split(',').map((v) => v.trim());
+      const row: CSVRow = {};
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
       });
@@ -45,221 +52,210 @@ export default function PrintPage() {
     setCsvData(data);
   };
 
+  const downloadCsvTemplate = () => {
+    if (!selectedDesign) return;
+
+    // Extract dynamic fields from elements
+    const dynamicFields = selectedDesign.elements
+      .filter((el) => el.isDynamic && el.fieldName)
+      .map((el) => el.fieldName!);
+
+    const uniqueFields = Array.from(new Set(dynamicFields));
+
+    if (uniqueFields.length === 0) {
+      alert('This design has no dynamic fields. Add dynamic data to elements first.');
+      return;
+    }
+
+    const csvContent = uniqueFields.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedDesign.name}_template.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handlePrint = () => {
     if (!selectedDesign) {
       alert('Please select a label design');
       return;
     }
 
-    const format = getFormatById(selectedDesign.formatId);
-    if (!format) {
-      alert('Format not found');
-      return;
-    }
-
-    if (format.type === 'thermal') {
-      alert('QZ Tray integration coming soon! This will send ZPL commands to your thermal printer.');
-    } else {
-      alert('PDF generation coming soon! This will create a PDF with all your labels.');
-    }
+    alert('Print functionality coming soon! This will send to QZ Tray or generate PDF.');
   };
 
-  const selectedFormat = selectedDesign ? getFormatById(selectedDesign.formatId) : null;
+  const totalLabels = csvData.length * quantityPerRow;
 
   return (
-    <div className="min-h-full bg-gray-950">
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Print Labels</h1>
-          <p className="text-gray-400">
-            Batch print labels with dynamic data from CSV files.
-          </p>
-        </div>
+    <div className="h-screen flex flex-col bg-zinc-950">
+      {/* Top bar */}
+      <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 gap-4">
+        <Link href="/" className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
+          ← Designer
+        </Link>
+        <div className="w-px h-6 bg-zinc-700" />
+        <h1 className="text-lg font-semibold text-white">Print Labels</h1>
+      </div>
 
-        <div className="space-y-6">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           {/* Step 1: Select Design */}
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              1. Select Label Design
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {designs.length === 0 ? (
-                <p className="text-gray-400 col-span-3">
-                  No saved designs. Create a label in the Designer first.
-                </p>
-              ) : (
-                designs.map((design) => {
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">1. Select Label Design</h2>
+
+            {designs.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                <p className="text-zinc-400 text-sm mb-4">No saved labels yet</p>
+                <Link
+                  href="/"
+                  className="inline-block px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md"
+                >
+                  Create a Label
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {designs.map((design) => {
                   const format = getFormatById(design.formatId);
+                  const isSelected = selectedDesignId === design.id;
+
                   return (
                     <button
                       key={design.id}
-                      onClick={() => setSelectedDesign(design)}
-                      className={`p-4 rounded-lg border transition-colors text-left ${
-                        selectedDesign?.id === design.id
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      onClick={() => setSelectedDesignId(design.id)}
+                      className={`p-4 rounded-lg border transition-all text-left ${
+                        isSelected
+                          ? 'border-indigo-500 bg-zinc-800'
+                          : 'border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <div className="text-lg font-medium mb-1">{design.name}</div>
-                      <div className="text-sm opacity-75">
-                        {format?.name} ({format?.labelWidth}" × {format?.labelHeight}")
-                      </div>
+                      {design.thumbnail ? (
+                        <img
+                          src={design.thumbnail}
+                          alt={design.name}
+                          className="w-full h-24 object-contain mb-3 bg-zinc-800 rounded"
+                        />
+                      ) : (
+                        <div className="w-full h-24 bg-zinc-800 rounded flex items-center justify-center mb-3">
+                          <FileText className="w-8 h-8 text-zinc-600" />
+                        </div>
+                      )}
+                      <h3 className="text-sm font-semibold text-white truncate">{design.name}</h3>
+                      <p className="text-xs text-zinc-500">{format?.name}</p>
                     </button>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Step 2: Upload CSV */}
+          {/* Step 2: Upload Data */}
           {selectedDesign && (
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">
-                2. Upload CSV Data
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    CSV File (optional - leave blank for single label)
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCsvUpload}
-                    className="block w-full text-sm text-gray-400
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-lg file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-blue-600 file:text-white
-                      hover:file:bg-blue-700 file:cursor-pointer
-                      cursor-pointer"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Upload a CSV file with columns matching your dynamic fields
-                  </p>
-                </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">2. Upload Data (CSV)</h2>
 
-                {csvData.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-white mb-2">
-                      Preview ({csvData.length} rows)
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-800">
-                            {Object.keys(csvData[0]).map((header) => (
-                              <th
-                                key={header}
-                                className="px-4 py-2 text-left text-gray-400 font-medium"
-                              >
-                                {header}
-                              </th>
+              <div className="flex gap-4 mb-6">
+                <button
+                  onClick={downloadCsvTemplate}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm rounded-md flex items-center gap-2"
+                >
+                  <Download size={16} />
+                  Download CSV Template
+                </button>
+
+                <label className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md flex items-center gap-2 cursor-pointer">
+                  <Upload size={16} />
+                  Upload CSV
+                  <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" />
+                </label>
+              </div>
+
+              {csvData.length > 0 && (
+                <div>
+                  <p className="text-sm text-zinc-400 mb-3">
+                    Loaded {csvData.length} rows from {csvFile?.name}
+                  </p>
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-lg overflow-auto max-h-64">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-900 sticky top-0">
+                        <tr>
+                          {Object.keys(csvData[0]).map((key) => (
+                            <th key={key} className="px-4 py-2 text-left text-zinc-300 font-semibold">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvData.slice(0, 10).map((row, idx) => (
+                          <tr key={idx} className="border-t border-zinc-800">
+                            {Object.values(row).map((val, i) => (
+                              <td key={i} className="px-4 py-2 text-zinc-400">
+                                {val}
+                              </td>
                             ))}
                           </tr>
-                        </thead>
-                        <tbody>
-                          {csvData.slice(0, 5).map((row, index) => (
-                            <tr key={index} className="border-b border-gray-800">
-                              {Object.values(row).map((value, colIndex) => (
-                                <td key={colIndex} className="px-4 py-2 text-gray-300">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {csvData.length > 5 && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Showing first 5 of {csvData.length} rows
-                        </p>
-                      )}
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
+                  {csvData.length > 10 && (
+                    <p className="text-xs text-zinc-500 mt-2">Showing first 10 of {csvData.length} rows</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 3: Print Options */}
-          {selectedDesign && (
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">
-                3. Print Options
-              </h2>
+          {/* Step 3: Print Settings */}
+          {selectedDesign && csvData.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">3. Print Settings</h2>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Quantity per row
-                  </label>
+                  <label className="block text-sm text-zinc-400 mb-2">Quantity per Row</label>
                   <input
                     type="number"
                     min="1"
                     value={quantityPerRow}
-                    onChange={(e) => setQuantityPerRow(parseInt(e.target.value))}
-                    className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setQuantityPerRow(parseInt(e.target.value) || 1)}
+                    className="w-32 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Print {quantityPerRow} label(s) for each row in the CSV
-                  </p>
                 </div>
 
-                <div className="flex gap-4 pt-4">
-                  {selectedFormat?.type === 'thermal' ? (
-                    <button
-                      onClick={handlePrint}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <span>🖨</span>
-                      Print via QZ Tray
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePrint}
-                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
-                    >
-                      <span>📄</span>
-                      Generate PDF
-                    </button>
-                  )}
-                  <div className="flex-1 bg-gray-800 rounded-lg px-4 py-3 flex items-center justify-between">
+                <div className="bg-zinc-800 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-sm font-medium text-white">
-                        Total labels to print: {csvData.length > 0 ? csvData.length * quantityPerRow : 1}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {selectedFormat?.type === 'sheet'
-                          ? `≈ ${Math.ceil((csvData.length * quantityPerRow) / (selectedFormat.labelsPerSheet || 1))} sheets`
-                          : 'Thermal printer ready'}
-                      </div>
+                      <p className="text-xs text-zinc-500">Data Rows</p>
+                      <p className="text-lg font-mono text-white">{csvData.length}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-zinc-500">Total Labels</p>
+                      <p className="text-lg font-mono text-white">{totalLabels}</p>
+                    </div>
+                    {selectedFormat?.type === 'sheet' && (
+                      <div>
+                        <p className="text-xs text-zinc-500">Sheets Needed</p>
+                        <p className="text-lg font-mono text-white">
+                          {Math.ceil(totalLabels / (selectedFormat.labelsPerSheet || 1))}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* QZ Tray Status */}
-          {selectedFormat?.type === 'thermal' && (
-            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">QZ Tray Status</h3>
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <div>
-                  <div className="text-white font-medium">Not Connected</div>
-                  <div className="text-sm text-gray-400">
-                    QZ Tray is not detected. Install from{' '}
-                    <a
-                      href="https://qz.io/download"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300"
-                    >
-                      qz.io/download
-                    </a>
-                  </div>
-                </div>
+                <button
+                  onClick={handlePrint}
+                  className="w-full px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-md flex items-center justify-center gap-2"
+                >
+                  <Printer size={20} />
+                  {selectedFormat?.type === 'thermal' ? 'Send to Printer' : 'Generate PDF'}
+                </button>
               </div>
             </div>
           )}

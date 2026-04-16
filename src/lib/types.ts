@@ -33,6 +33,7 @@ export interface LabelDesign {
   name: string;
   formatId: string;
   elements: CanvasElement[];
+  thumbnail?: string; // base64 image data URL
   createdAt: string;
   updatedAt: string;
 }
@@ -52,8 +53,9 @@ export interface CanvasElement {
   fontFamily?: string;
   fontSize?: number;
   fontWeight?: string;
-  textAlign?: string;
+  textAlign?: 'left' | 'center' | 'right';
   color?: string;
+  lineHeight?: number;
 
   // QR Code
   qrData?: string;
@@ -72,6 +74,7 @@ export interface CanvasElement {
   strokeWidth?: number;
   strokeColor?: string;
   fillColor?: string;
+  cornerRadius?: number;
 
   // Dynamic data binding
   isDynamic?: boolean;
@@ -86,4 +89,30 @@ export interface PrintSettings {
   darkness: number;
   printSpeed: number;
   mediaType: 'direct' | 'transfer';
+}
+
+// Tool Types
+export type ToolType = 'select' | 'text' | 'qr' | 'barcode' | 'image' | 'rectangle' | 'ellipse' | 'line';
+
+// Canvas State
+export interface CanvasState {
+  zoom: number;
+  panX: number;
+  panY: number;
+  showGrid: boolean;
+  showRulers: boolean;
+  snapToGrid: boolean;
+  gridSize: number; // in inches
+}
+
+// History for undo/redo
+export interface HistoryState {
+  past: CanvasElement[][];
+  present: CanvasElement[];
+  future: CanvasElement[][];
+}
+
+// CSV Data for printing
+export interface CSVRow {
+  [key: string]: string;
 }

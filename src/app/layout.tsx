@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -10,7 +9,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "LabelFlow - Label Designer & Printer",
-  description: "Design and print labels with ease",
+  description: "Professional label design tool for thermal and sheet labels",
 };
 
 export default function RootLayout({
@@ -19,12 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="h-full bg-gray-950 text-white antialiased">
-        <div className="flex h-full">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">{children}</main>
-        </div>
+    <html lang="en" className={`${inter.variable}`}>
+      <body className="bg-zinc-950 text-zinc-100 antialiased">
+        {children}
       </body>
     </html>
   );

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LabelFormat } from '@/lib/types';
-import { saveFormat } from '@/lib/store';
-import { v4 as uuidv4 } from 'uuid';
+import { useFormatsStore } from '@/lib/store';
 import FormatGridPreview from './FormatGridPreview';
 
 interface AddFormatModalProps {
@@ -13,6 +12,7 @@ interface AddFormatModalProps {
 }
 
 export default function AddFormatModal({ isOpen, onClose, onSave }: AddFormatModalProps) {
+  const { saveFormat } = useFormatsStore();
   const [formatType, setFormatType] = useState<'thermal' | 'sheet'>('sheet');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -63,7 +63,7 @@ export default function AddFormatModal({ isOpen, onClose, onSave }: AddFormatMod
   const handleSave = () => {
     const format: LabelFormat = {
       ...previewFormat,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name,
       description,
     };
