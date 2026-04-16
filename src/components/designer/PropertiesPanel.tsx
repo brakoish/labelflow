@@ -43,6 +43,11 @@ function ElementProperties({
 
   const updateField = (field: keyof CanvasElement, value: any) => {
     onUpdate(element.id, { [field]: value });
+
+    // Trigger canvas refresh by dispatching a custom event
+    window.dispatchEvent(new CustomEvent('element-updated', {
+      detail: { id: element.id, field, value }
+    }));
   };
 
   return (

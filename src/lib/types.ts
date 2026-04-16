@@ -22,6 +22,7 @@ export interface LabelFormat {
 
   // For thermal labels
   dpi?: number;
+  labelsAcross?: number; // For multi-across thermal rolls (e.g., 3 labels per row)
 
   createdAt: string;
   updatedAt: string;

@@ -3,6 +3,7 @@
 import { ZoomIn, ZoomOut, Undo, Redo, Save } from 'lucide-react';
 import { useDesignerStore } from '@/lib/store';
 import { useFormatsStore } from '@/lib/store';
+import Link from 'next/link';
 
 export function TopToolbar() {
   const {
@@ -12,6 +13,7 @@ export function TopToolbar() {
     history,
     updateDesignName,
     setCanvasState,
+    setCurrentFormat,
     undo,
     redo,
     saveCurrentDesign,
@@ -31,16 +33,25 @@ export function TopToolbar() {
     setCanvasState({ zoom: 1 });
   };
 
+  const handleFormatChange = (formatId: string) => {
+    const newFormat = formats.find(f => f.id === formatId);
+    if (newFormat) {
+      setCurrentFormat(newFormat);
+    }
+  };
+
   const handleSave = () => {
-    // TODO: Generate thumbnail from canvas
-    saveCurrentDesign();
+    // Trigger canvas to generate thumbnail
+    window.dispatchEvent(new CustomEvent('save-design'));
   };
 
   return (
     <div className="h-12 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-6">
       {/* Left: Logo and design name */}
       <div className="flex items-center gap-4">
-        <div className="text-sm font-semibold text-indigo-400">LabelFlow</div>
+        <Link href="/" className="text-sm font-semibold text-indigo-400 hover:text-indigo-300">
+          LabelFlow
+        </Link>
 
         {currentDesign && (
           <>
@@ -70,7 +81,7 @@ export function TopToolbar() {
             <select
               className="bg-zinc-800 text-sm text-zinc-100 border border-zinc-700 rounded-md px-3 py-1.5 outline-none focus:border-indigo-500"
               value={currentFormat.id}
-              onChange={() => {}}
+              onChange={(e) => handleFormatChange(e.target.value)}
             >
               {formats.map((fmt) => (
                 <option key={fmt.id} value={fmt.id}>
@@ -79,23 +90,8 @@ export function TopToolbar() {
               ))}
             </select>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.125"
-                value={currentFormat.labelWidth}
-                readOnly
-                className="w-16 bg-zinc-800 text-sm text-zinc-300 border border-zinc-700 rounded px-2 py-1 text-center font-mono"
-              />
-              <span className="text-zinc-500 text-xs">×</span>
-              <input
-                type="number"
-                step="0.125"
-                value={currentFormat.labelHeight}
-                readOnly
-                className="w-16 bg-zinc-800 text-sm text-zinc-300 border border-zinc-700 rounded px-2 py-1 text-center font-mono"
-              />
-              <span className="text-zinc-500 text-xs">in</span>
+            <div className="text-sm text-zinc-400 font-mono">
+              {currentFormat.labelWidth}" × {currentFormat.labelHeight}"
             </div>
           </>
         )}
@@ -145,17 +141,13 @@ export function TopToolbar() {
 
         <div className="w-px h-5 bg-zinc-700 mx-1" />
 
-        <div className="flex gap-1 bg-zinc-800 rounded p-1">
-          <button
-            className="px-2 py-1 text-xs bg-indigo-500 text-white rounded"
-          >
-            Sheet
-          </button>
-          <button
-            className="px-2 py-1 text-xs text-zinc-400 hover:text-zinc-100"
-          >
-            Thermal
-          </button>
+        <div className="flex gap-2 text-xs">
+          <Link href="/formats" className="px-2 py-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded">
+            Formats
+          </Link>
+          <Link href="/labels" className="px-2 py-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded">
+            Labels
+          </Link>
         </div>
       </div>
     </div>
