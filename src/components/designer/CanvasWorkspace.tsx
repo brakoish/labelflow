@@ -60,9 +60,17 @@ export function CanvasWorkspace() {
     // Handle canvas click for adding elements
     const handleCanvasClick = (e: any) => {
       const tool = activeToolRef.current;
-      if (!e.pointer || tool === 'select') return;
+      console.log('[LabelFlow] mouse:down, tool:', tool, 'event keys:', Object.keys(e));
+      if (tool === 'select') return;
 
-      const pointer = e.pointer;
+      // Fabric.js v6 uses scenePoint or viewportPoint, not pointer
+      const pointer = e.scenePoint || e.viewportPoint || e.pointer;
+      if (!pointer) {
+        console.warn('No pointer data in mouse:down event', e);
+        return;
+      }
+      console.log('[LabelFlow] Adding element at', pointer.x, pointer.y);
+
       const x = pointer.x / DPI;
       const y = pointer.y / DPI;
 
