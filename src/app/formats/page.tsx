@@ -8,8 +8,59 @@ import { Plus, Upload, Edit2, Trash2, Tag } from 'lucide-react';
 import Link from 'next/link';
 
 export default function FormatsPage() {
-  const { formats, loadFormats, deleteFormat: deleteFormatFromStore } = useFormatsStore();
+  const { formats, loadFormats, deleteFormat: deleteFormatFromStore, saveFormat } = useFormatsStore();
   const [selectedFormat, setSelectedFormat] = useState<LabelFormat | null>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newType, setNewType] = useState<'thermal' | 'sheet'>('thermal');
+  const [newName, setNewName] = useState('');
+  const [newLabelW, setNewLabelW] = useState('2');
+  const [newLabelH, setNewLabelH] = useState('1');
+  const [newDpi, setNewDpi] = useState('203');
+  const [newSheetW, setNewSheetW] = useState('8.5');
+  const [newSheetH, setNewSheetH] = useState('11');
+  const [newCols, setNewCols] = useState('3');
+  const [newRows, setNewRows] = useState('10');
+  const [newTopMargin, setNewTopMargin] = useState('0.5');
+  const [newSideMargin, setNewSideMargin] = useState('0.1875');
+  const [newHGap, setNewHGap] = useState('0.125');
+  const [newVGap, setNewVGap] = useState('0');
+
+  const resetNewForm = () => {
+    setNewName(''); setNewLabelW('2'); setNewLabelH('1'); setNewDpi('203');
+    setNewSheetW('8.5'); setNewSheetH('11'); setNewCols('3'); setNewRows('10');
+    setNewTopMargin('0.5'); setNewSideMargin('0.1875'); setNewHGap('0.125'); setNewVGap('0');
+    setNewType('thermal');
+  };
+
+  const handleCreateFormat = () => {
+    if (!newName.trim()) return;
+    const now = new Date().toISOString();
+    const format: LabelFormat = {
+      id: crypto.randomUUID(),
+      name: newName,
+      type: newType,
+      labelWidth: parseFloat(newLabelW) || 2,
+      labelHeight: parseFloat(newLabelH) || 1,
+      ...(newType === 'thermal' && { dpi: parseInt(newDpi) || 203 }),
+      ...(newType === 'sheet' && {
+        sheetWidth: parseFloat(newSheetW) || 8.5,
+        sheetHeight: parseFloat(newSheetH) || 11,
+        columns: parseInt(newCols) || 3,
+        rows: parseInt(newRows) || 10,
+        labelsPerSheet: (parseInt(newCols) || 3) * (parseInt(newRows) || 10),
+        topMargin: parseFloat(newTopMargin) || 0,
+        sideMargin: parseFloat(newSideMargin) || 0,
+        horizontalGap: parseFloat(newHGap) || 0,
+        verticalGap: parseFloat(newVGap) || 0,
+      }),
+      createdAt: now,
+      updatedAt: now,
+    };
+    saveFormat(format);
+    setSelectedFormat(format);
+    setShowNewForm(false);
+    resetNewForm();
+  };
 
   useEffect(() => {
     loadFormats();
@@ -46,7 +97,10 @@ export default function FormatsPage() {
         <div className="w-96 bg-zinc-900 border-r border-zinc-800 flex flex-col">
           <div className="p-4 border-b border-zinc-800">
             <div className="flex gap-2">
-              <button className="flex-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md flex items-center justify-center gap-2">
+              <button
+                onClick={() => setShowNewForm(!showNewForm)}
+                className="flex-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md flex items-center justify-center gap-2"
+              >
                 <Plus size={16} />
                 New Format
               </button>
@@ -56,6 +110,136 @@ export default function FormatsPage() {
               </button>
             </div>
           </div>
+
+          {showNewForm && (
+            <div className="p-4 border-b border-zinc-800 space-y-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. My Custom Label"
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Type</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setNewType('thermal')}
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      newType === 'thermal'
+                        ? 'bg-orange-500/20 border-orange-500 text-orange-300'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                    }`}
+                  >
+                    Thermal Roll
+                  </button>
+                  <button
+                    onClick={() => setNewType('sheet')}
+                    className={`flex-1 px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                      newType === 'sheet'
+                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                    }`}
+                  >
+                    Sheet
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Label Width (")</label>
+                  <input type="number" step="0.001" value={newLabelW} onChange={(e) => setNewLabelW(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Label Height (")</label>
+                  <input type="number" step="0.001" value={newLabelH} onChange={(e) => setNewLabelH(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                </div>
+              </div>
+              {newType === 'thermal' && (
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">DPI</label>
+                  <select value={newDpi} onChange={(e) => setNewDpi(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500">
+                    <option value="203">203 DPI</option>
+                    <option value="300">300 DPI</option>
+                  </select>
+                </div>
+              )}
+              {newType === 'sheet' && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Sheet W (")</label>
+                      <input type="number" step="0.1" value={newSheetW} onChange={(e) => setNewSheetW(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Sheet H (")</label>
+                      <input type="number" step="0.1" value={newSheetH} onChange={(e) => setNewSheetH(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Columns</label>
+                      <input type="number" value={newCols} onChange={(e) => setNewCols(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Rows</label>
+                      <input type="number" value={newRows} onChange={(e) => setNewRows(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Top Margin (")</label>
+                      <input type="number" step="0.001" value={newTopMargin} onChange={(e) => setNewTopMargin(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Side Margin (")</label>
+                      <input type="number" step="0.001" value={newSideMargin} onChange={(e) => setNewSideMargin(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">H Gap (")</label>
+                      <input type="number" step="0.001" value={newHGap} onChange={(e) => setNewHGap(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">V Gap (")</label>
+                      <input type="number" step="0.001" value={newVGap} onChange={(e) => setNewVGap(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleCreateFormat}
+                  disabled={!newName.trim()}
+                  className="flex-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm rounded-md"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => { setShowNewForm(false); resetNewForm(); }}
+                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-md"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {formats.map((format) => (
