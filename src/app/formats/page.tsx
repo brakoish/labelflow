@@ -11,6 +11,8 @@ export default function FormatsPage() {
   const { formats, loadFormats, deleteFormat: deleteFormatFromStore, saveFormat } = useFormatsStore();
   const [selectedFormat, setSelectedFormat] = useState<LabelFormat | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newType, setNewType] = useState<'thermal' | 'sheet'>('thermal');
   const [newName, setNewName] = useState('');
   const [newLabelW, setNewLabelW] = useState('2');
@@ -24,19 +26,42 @@ export default function FormatsPage() {
   const [newSideMargin, setNewSideMargin] = useState('0.1875');
   const [newHGap, setNewHGap] = useState('0.125');
   const [newVGap, setNewVGap] = useState('0');
+  const [showPdfImportModal, setShowPdfImportModal] = useState(false);
+  const [pdfFileName, setPdfFileName] = useState('');
 
   const resetNewForm = () => {
     setNewName(''); setNewLabelW('2'); setNewLabelH('1'); setNewDpi('203');
     setNewSheetW('8.5'); setNewSheetH('11'); setNewCols('3'); setNewRows('10');
     setNewTopMargin('0.5'); setNewSideMargin('0.1875'); setNewHGap('0.125'); setNewVGap('0');
     setNewType('thermal');
+    setEditing(false);
+    setEditingId(null);
+  };
+
+  const loadFormatIntoForm = (format: LabelFormat) => {
+    setNewName(format.name);
+    setNewType(format.type);
+    setNewLabelW(String(format.labelWidth));
+    setNewLabelH(String(format.labelHeight));
+    if (format.type === 'thermal') {
+      setNewDpi(String(format.dpi || 203));
+    } else {
+      setNewSheetW(String(format.sheetWidth || 8.5));
+      setNewSheetH(String(format.sheetHeight || 11));
+      setNewCols(String(format.columns || 3));
+      setNewRows(String(format.rows || 10));
+      setNewTopMargin(String(format.topMargin || 0.5));
+      setNewSideMargin(String(format.sideMargin || 0.1875));
+      setNewHGap(String(format.horizontalGap || 0.125));
+      setNewVGap(String(format.verticalGap || 0));
+    }
   };
 
   const handleCreateFormat = () => {
     if (!newName.trim()) return;
     const now = new Date().toISOString();
     const format: LabelFormat = {
-      id: crypto.randomUUID(),
+      id: editing && editingId ? editingId : crypto.randomUUID(),
       name: newName,
       type: newType,
       labelWidth: parseFloat(newLabelW) || 2,
@@ -53,13 +78,40 @@ export default function FormatsPage() {
         horizontalGap: parseFloat(newHGap) || 0,
         verticalGap: parseFloat(newVGap) || 0,
       }),
-      createdAt: now,
+      createdAt: editing && selectedFormat ? selectedFormat.createdAt : now,
       updatedAt: now,
     };
     saveFormat(format);
     setSelectedFormat(format);
     setShowNewForm(false);
     resetNewForm();
+  };
+
+  const handleEditFormat = () => {
+    if (!selectedFormat) return;
+    setEditing(true);
+    setEditingId(selectedFormat.id);
+    loadFormatIntoForm(selectedFormat);
+    setShowNewForm(true);
+  };
+
+  const handlePdfImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.name.endsWith('.pdf')) return;
+
+    setPdfFileName(file.name);
+    // Default to letter size for v1
+    setNewSheetW('8.5');
+    setNewSheetH('11');
+    setNewType('sheet');
+    setShowPdfImportModal(true);
+  };
+
+  const confirmPdfImport = () => {
+    setShowPdfImportModal(false);
+    setShowNewForm(true);
+    setNewName(pdfFileName.replace('.pdf', '') + ' Labels');
+    // Keep the sheet dimensions already set, user will fill in grid specs
   };
 
   useEffect(() => {
@@ -104,10 +156,11 @@ export default function FormatsPage() {
                 <Plus size={16} />
                 New Format
               </button>
-              <button className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-md flex items-center gap-2">
+              <label className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-md flex items-center gap-2 cursor-pointer">
                 <Upload size={16} />
                 Import PDF
-              </button>
+                <input type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
+              </label>
             </div>
           </div>
 
@@ -229,7 +282,7 @@ export default function FormatsPage() {
                   disabled={!newName.trim()}
                   className="flex-1 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm rounded-md"
                 >
-                  Create
+                  {editing ? 'Update' : 'Create'}
                 </button>
                 <button
                   onClick={() => { setShowNewForm(false); resetNewForm(); }}
@@ -295,7 +348,10 @@ export default function FormatsPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md">
+                  <button
+                    onClick={handleEditFormat}
+                    className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md"
+                  >
                     <Edit2 size={18} />
                   </button>
                   <button
@@ -407,6 +463,39 @@ export default function FormatsPage() {
           )}
         </div>
       </div>
+
+      {/* PDF Import Modal */}
+      {showPdfImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-4">PDF Template Imported</h3>
+            <p className="text-sm text-zinc-300 mb-4">
+              Review dimensions below and manually enter the label grid specifications.
+            </p>
+            <div className="bg-zinc-800 rounded-lg p-4 mb-4">
+              <p className="text-xs text-zinc-400 mb-2">Detected sheet size (Letter):</p>
+              <p className="text-sm text-white font-mono">8.5" × 11"</p>
+            </div>
+            <p className="text-xs text-zinc-500 mb-6">
+              Click Continue to fill in label count, margins, and gaps in the form.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmPdfImport}
+                className="flex-1 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md"
+              >
+                Continue
+              </button>
+              <button
+                onClick={() => setShowPdfImportModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-md"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,14 @@ export default function LabelsPage() {
   const { designs, loadDesigns, deleteDesign } = useDesignsStore();
   const { formats, loadFormats, getFormatById } = useFormatsStore();
 
+  const saveDesign = (design: any) => {
+    const storedDesigns = localStorage.getItem('labelflow_designs');
+    const allDesigns = storedDesigns ? JSON.parse(storedDesigns) : [];
+    allDesigns.push(design);
+    localStorage.setItem('labelflow_designs', JSON.stringify(allDesigns));
+    loadDesigns(); // Refresh the list
+  };
+
   useEffect(() => {
     loadFormats();
     loadDesigns();
@@ -25,8 +33,19 @@ export default function LabelsPage() {
 
   const handleDuplicate = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement duplicate
-    alert('Duplicate feature coming soon!');
+    const design = designs.find(d => d.id === id);
+    if (!design) return;
+
+    const now = new Date().toISOString();
+    const duplicatedDesign = {
+      ...design,
+      id: crypto.randomUUID(),
+      name: design.name + ' (copy)',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    saveDesign(duplicatedDesign);
   };
 
   const handleOpen = (id: string) => {

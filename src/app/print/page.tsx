@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useDesignsStore, useFormatsStore } from '@/lib/store';
-import { CSVRow } from '@/lib/types';
+import { CSVRow, LabelDesign, LabelFormat, CanvasElement } from '@/lib/types';
 import { Upload, Download, Printer, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
 export default function PrintPage() {
   const { designs, loadDesigns } = useDesignsStore();
@@ -13,6 +16,8 @@ export default function PrintPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [quantityPerRow, setQuantityPerRow] = useState(1);
+  const [showZplModal, setShowZplModal] = useState(false);
+  const [zplOutput, setZplOutput] = useState('');
 
   useEffect(() => {
     loadFormats();
@@ -77,13 +82,188 @@ export default function PrintPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handlePrint = () => {
-    if (!selectedDesign) {
+  const handlePrint = async () => {
+    if (!selectedDesign || !selectedFormat) {
       alert('Please select a label design');
       return;
     }
 
-    alert('Print functionality coming soon! This will send to QZ Tray or generate PDF.');
+    if (selectedFormat.type === 'sheet') {
+      await generatePDF(selectedDesign, selectedFormat, csvData, quantityPerRow);
+    } else {
+      await generateZPL(selectedDesign, selectedFormat, csvData, quantityPerRow);
+    }
+  };
+
+  const generatePDF = async (design: LabelDesign, format: LabelFormat, data: CSVRow[], qty: number) => {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'in',
+      format: [format.sheetWidth || 8.5, format.sheetHeight || 11],
+    });
+
+    const labelsPerSheet = format.labelsPerSheet || 1;
+    const totalLabels = data.length * qty;
+    let labelIndex = 0;
+
+    for (let i = 0; i < totalLabels; i++) {
+      const dataRow = data[Math.floor(i / qty)];
+      const col = labelIndex % (format.columns || 1);
+      const row = Math.floor(labelIndex / (format.columns || 1)) % (format.rows || 1);
+
+      // Calculate label position
+      const labelX = (format.sideMargin || 0) + col * (format.labelWidth + (format.horizontalGap || 0));
+      const labelY = (format.topMargin || 0) + row * (format.labelHeight + (format.verticalGap || 0));
+
+      // Render each element on the label
+      for (const element of design.elements) {
+        await renderElementToPDF(pdf, element, labelX, labelY, dataRow);
+      }
+
+      labelIndex++;
+
+      // Add new page if we've filled this sheet and have more labels
+      if (labelIndex % labelsPerSheet === 0 && i < totalLabels - 1) {
+        pdf.addPage();
+        labelIndex = 0;
+      }
+    }
+
+    // Open PDF in new tab
+    pdf.output('dataurlnewwindow');
+  };
+
+  const renderElementToPDF = async (pdf: jsPDF, element: CanvasElement, offsetX: number, offsetY: number, dataRow?: CSVRow) => {
+    const x = offsetX + element.x;
+    const y = offsetY + element.y;
+
+    if (element.type === 'text') {
+      const text = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.text || ''
+        : element.text || '';
+
+      pdf.setFontSize(element.fontSize || 12);
+      pdf.text(text, x, y + (element.fontSize || 12) / 72); // Adjust for baseline
+    }
+    else if (element.type === 'qr') {
+      const qrData = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.qrData || ''
+        : element.qrData || '';
+
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrData, {
+          errorCorrectionLevel: element.qrErrorCorrection || 'M',
+          width: element.width * 72,
+          margin: 0,
+        });
+        pdf.addImage(qrDataUrl, 'PNG', x, y, element.width, element.height);
+      } catch (err) {
+        console.error('QR generation error:', err);
+      }
+    }
+    else if (element.type === 'barcode') {
+      const barcodeData = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.barcodeData || ''
+        : element.barcodeData || '';
+
+      try {
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, barcodeData, {
+          format: element.barcodeFormat || 'CODE128',
+          displayValue: element.showBarcodeText ?? true,
+          width: 2,
+          height: element.height * 72,
+        });
+        const barcodeDataUrl = canvas.toDataURL();
+        pdf.addImage(barcodeDataUrl, 'PNG', x, y, element.width, element.height);
+      } catch (err) {
+        console.error('Barcode generation error:', err);
+      }
+    }
+    else if (element.type === 'shape') {
+      pdf.setDrawColor(element.strokeColor || '#000000');
+      pdf.setFillColor(element.fillColor || '#ffffff');
+      pdf.setLineWidth(element.strokeWidth || 1 / 72);
+
+      if (element.shapeType === 'rect') {
+        if (element.fillColor) {
+          pdf.rect(x, y, element.width, element.height, 'FD');
+        } else {
+          pdf.rect(x, y, element.width, element.height, 'S');
+        }
+      } else if (element.shapeType === 'circle') {
+        const radius = Math.min(element.width, element.height) / 2;
+        if (element.fillColor) {
+          pdf.circle(x + radius, y + radius, radius, 'FD');
+        } else {
+          pdf.circle(x + radius, y + radius, radius, 'S');
+        }
+      } else if (element.shapeType === 'line') {
+        pdf.line(x, y, x + element.width, y + element.height);
+      }
+    }
+  };
+
+  const generateZPL = async (design: LabelDesign, format: LabelFormat, data: CSVRow[], qty: number) => {
+    const dpi = format.dpi || 203;
+    let zpl = '';
+
+    const totalLabels = data.length * qty;
+    for (let i = 0; i < totalLabels; i++) {
+      const dataRow = data[Math.floor(i / qty)];
+
+      zpl += '^XA\n'; // Start label
+      zpl += `^PW${Math.round(format.labelWidth * dpi)}\n`; // Print width
+      zpl += `^LL${Math.round(format.labelHeight * dpi)}\n`; // Label length
+
+      for (const element of design.elements) {
+        zpl += renderElementToZPL(element, dpi, dataRow);
+      }
+
+      zpl += '^XZ\n'; // End label
+    }
+
+    setZplOutput(zpl);
+    setShowZplModal(true);
+  };
+
+  const renderElementToZPL = (element: CanvasElement, dpi: number, dataRow?: CSVRow): string => {
+    const x = Math.round(element.x * dpi);
+    const y = Math.round(element.y * dpi);
+    let zpl = '';
+
+    if (element.type === 'text') {
+      const text = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.text || ''
+        : element.text || '';
+
+      const fontSize = Math.round((element.fontSize || 12) * dpi / 72);
+      zpl += `^FO${x},${y}\n`;
+      zpl += `^A0N,${fontSize},${fontSize}\n`;
+      zpl += `^FD${text}^FS\n`;
+    }
+    else if (element.type === 'qr') {
+      const qrData = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.qrData || ''
+        : element.qrData || '';
+
+      const size = Math.round(element.width * dpi / 10);
+      zpl += `^FO${x},${y}\n`;
+      zpl += `^BQN,2,${size}\n`;
+      zpl += `^FD${qrData}^FS\n`;
+    }
+    else if (element.type === 'barcode') {
+      const barcodeData = element.isDynamic && element.fieldName && dataRow
+        ? dataRow[element.fieldName] || element.barcodeData || ''
+        : element.barcodeData || '';
+
+      const height = Math.round(element.height * dpi);
+      zpl += `^FO${x},${y}\n`;
+      zpl += `^BCN,${height},Y,N,N\n`;
+      zpl += `^FD${barcodeData}^FS\n`;
+    }
+
+    return zpl;
   };
 
   const totalLabels = csvData.length * quantityPerRow;
@@ -261,6 +441,40 @@ export default function PrintPage() {
           )}
         </div>
       </div>
+
+      {/* ZPL Output Modal */}
+      {showZplModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-3xl w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-4">ZPL Output</h3>
+            <p className="text-sm text-zinc-300 mb-4">
+              Copy the ZPL commands below and send to your thermal printer via QZ Tray or direct connection.
+            </p>
+            <textarea
+              value={zplOutput}
+              readOnly
+              className="w-full h-96 px-4 py-3 bg-zinc-950 border border-zinc-700 rounded-md text-white font-mono text-xs focus:outline-none focus:border-indigo-500"
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(zplOutput);
+                  alert('ZPL copied to clipboard!');
+                }}
+                className="flex-1 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md"
+              >
+                Copy to Clipboard
+              </button>
+              <button
+                onClick={() => setShowZplModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm rounded-md"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

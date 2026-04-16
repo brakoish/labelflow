@@ -49,6 +49,7 @@ interface DesignerStore {
   setActiveTool: (tool: ToolType) => void;
   setCanvasState: (state: Partial<CanvasState>) => void;
   setCursorPosition: (pos: { x: number; y: number }) => void;
+  setPrintSettings: (settings: Partial<PrintSettings>) => void;
 
   // Element operations
   addElement: (element: CanvasElement) => void;
@@ -109,6 +110,10 @@ export const useDesignerStore = create<DesignerStore>((set, get) => ({
   })),
 
   setCursorPosition: (pos) => set({ cursorPosition: pos }),
+
+  setPrintSettings: (settings) => set((prev) => ({
+    printSettings: { ...prev.printSettings, ...settings }
+  })),
 
   addElement: (element) => {
     const { currentDesign } = get();

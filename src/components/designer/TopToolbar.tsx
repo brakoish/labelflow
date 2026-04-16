@@ -11,9 +11,11 @@ export function TopToolbar() {
     currentFormat,
     canvasState,
     history,
+    printSettings,
     updateDesignName,
     setCanvasState,
     setCurrentFormat,
+    setPrintSettings,
     undo,
     redo,
     saveCurrentDesign,
@@ -148,6 +150,31 @@ export function TopToolbar() {
           <Link href="/labels" className="px-2 py-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded">
             Labels
           </Link>
+        </div>
+
+        <div className="w-px h-5 bg-zinc-700 mx-1" />
+
+        <div className="flex gap-1">
+          <button
+            onClick={() => setPrintSettings({ mode: 'sheet' })}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              printSettings.mode === 'sheet'
+                ? 'bg-indigo-500 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-100'
+            }`}
+          >
+            Sheet
+          </button>
+          <button
+            onClick={() => setPrintSettings({ mode: 'thermal' })}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              printSettings.mode === 'thermal'
+                ? 'bg-indigo-500 text-white'
+                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-100'
+            }`}
+          >
+            Thermal
+          </button>
         </div>
       </div>
     </div>
