@@ -19,17 +19,26 @@ export function CanvasWorkspace() {
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const {
-    currentFormat,
-    canvasState,
-    currentDesign,
-    activeTool,
-    setActiveTool,
-    addElement,
-    updateElement,
-    setSelectedElements,
-    deleteSelectedElements,
-  } = useDesignerStore();
+  const currentFormat = useDesignerStore((s) => s.currentFormat);
+  const canvasState = useDesignerStore((s) => s.canvasState);
+  const currentDesign = useDesignerStore((s) => s.currentDesign);
+
+  // Use refs for values needed in event handlers to avoid re-creating canvas
+  const activeToolRef = useRef(useDesignerStore.getState().activeTool);
+  const currentDesignRef = useRef(currentDesign);
+
+  // Keep refs in sync
+  useEffect(() => {
+    const unsub = useDesignerStore.subscribe((state) => {
+      activeToolRef.current = state.activeTool;
+      currentDesignRef.current = state.currentDesign;
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    currentDesignRef.current = currentDesign;
+  }, [currentDesign]);
 
   useEffect(() => {
     if (!canvasRef.current || !currentFormat) return;
@@ -50,13 +59,14 @@ export function CanvasWorkspace() {
 
     // Handle canvas click for adding elements
     const handleCanvasClick = (e: any) => {
-      if (!e.pointer || activeTool === 'select') return;
+      const tool = activeToolRef.current;
+      if (!e.pointer || tool === 'select') return;
 
       const pointer = e.pointer;
       const x = pointer.x / DPI;
       const y = pointer.y / DPI;
 
-      addElementToCanvas(x, y);
+      addElementAtPosition(fabricCanvas, x, y, tool, DPI);
     };
 
     fabricCanvas.on('mouse:down', handleCanvasClick);
@@ -64,16 +74,16 @@ export function CanvasWorkspace() {
     // Handle object selection
     fabricCanvas.on('selection:created', (e: any) => {
       const selectedIds = e.selected?.map((obj: any) => obj.elementId).filter(Boolean) || [];
-      setSelectedElements(selectedIds);
+      useDesignerStore.getState().setSelectedElements(selectedIds);
     });
 
     fabricCanvas.on('selection:updated', (e: any) => {
       const selectedIds = e.selected?.map((obj: any) => obj.elementId).filter(Boolean) || [];
-      setSelectedElements(selectedIds);
+      useDesignerStore.getState().setSelectedElements(selectedIds);
     });
 
     fabricCanvas.on('selection:cleared', () => {
-      setSelectedElements([]);
+      useDesignerStore.getState().setSelectedElements([]);
     });
 
     // Handle object modification (move/resize)
@@ -89,15 +99,19 @@ export function CanvasWorkspace() {
         rotation: obj.angle || 0,
       };
 
-      updateElement(obj.elementId, updates);
+      useDesignerStore.getState().updateElement(obj.elementId, updates);
     });
 
     // Handle keyboard delete
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't delete if user is typing in an input
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
       if ((e.key === 'Delete' || e.key === 'Backspace') && fabricCanvas.getActiveObject()) {
         const activeObjects = fabricCanvas.getActiveObjects();
         activeObjects.forEach(obj => fabricCanvas.remove(obj));
-        deleteSelectedElements();
+        useDesignerStore.getState().deleteSelectedElements();
       }
     };
 
@@ -196,7 +210,8 @@ export function CanvasWorkspace() {
       window.removeEventListener('save-design', handleSave);
       fabricCanvas.dispose();
     };
-  }, [currentFormat, activeTool, addElement, updateElement, setSelectedElements, deleteSelectedElements]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFormat]);
 
   // Helper to load existing elements to canvas
   const loadElementToCanvas = async (fabricCanvas: Canvas, element: CanvasElement, DPI: number) => {
@@ -297,15 +312,15 @@ export function CanvasWorkspace() {
   }, [canvasState.zoom]);
 
   // Helper function to add elements to canvas
-  const addElementToCanvas = async (x: number, y: number) => {
-    if (!fabricCanvasRef.current || !currentDesign) return;
+  const addElementAtPosition = async (fabricCanvas: Canvas, x: number, y: number, tool: string, DPI: number) => {
+    if (!currentDesignRef.current) return;
 
-    const DPI = 96;
     const elementId = crypto.randomUUID();
     let fabricObject: FabricObject | null = null;
     let element: CanvasElement | null = null;
+    const { addElement: storeAddElement, setActiveTool: storeSetActiveTool } = useDesignerStore.getState();
 
-    switch (activeTool) {
+    switch (tool) {
       case 'text':
         const text = new IText('Text', {
           left: x * DPI,
@@ -391,9 +406,9 @@ export function CanvasWorkspace() {
             const img = await FabricImage.fromURL(dataUrl);
             img.set({ left: x * DPI, top: y * DPI });
             img.elementId = elementId;
-            fabricCanvasRef.current?.add(img);
+            fabricCanvas.add(img);
 
-            const element: CanvasElement = {
+            const imgElement: CanvasElement = {
               id: elementId,
               type: 'image',
               x,
@@ -402,9 +417,9 @@ export function CanvasWorkspace() {
               height: img.height! / DPI,
               imageData: dataUrl,
             };
-            addElement(element);
-            setActiveTool('select');
-            fabricCanvasRef.current?.setActiveObject(img);
+            storeAddElement(imgElement);
+            storeSetActiveTool('select');
+            fabricCanvas.setActiveObject(img);
           };
           reader.readAsDataURL(file);
         };
@@ -483,10 +498,11 @@ export function CanvasWorkspace() {
 
     if (fabricObject && element) {
       fabricObject.elementId = elementId;
-      fabricCanvasRef.current.add(fabricObject);
-      addElement(element);
-      setActiveTool('select');
-      fabricCanvasRef.current.setActiveObject(fabricObject);
+      fabricCanvas.add(fabricObject);
+      storeAddElement(element);
+      storeSetActiveTool('select');
+      fabricCanvas.setActiveObject(fabricObject);
+      fabricCanvas.renderAll();
     }
   };
 
