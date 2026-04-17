@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LabelFlow - Label Designer & Printer",
+  title: "Label Wrangler — Label Designer & Printer",
   description: "Professional label design tool for thermal and sheet labels",
 };
 

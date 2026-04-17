@@ -51,8 +51,9 @@ export function TopToolbar() {
     <div className="h-12 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-6">
       {/* Left: Logo and design name */}
       <div className="flex items-center gap-4">
-        <Link href="/" className="text-sm font-semibold text-indigo-400 hover:text-indigo-300">
-          LabelFlow
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-indigo-400 hover:text-indigo-300">
+          <img src="/logo.svg" alt="" className="w-5 h-5" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
+          Label Wrangler
         </Link>
 
         {currentDesign && (

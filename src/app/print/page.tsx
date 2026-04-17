@@ -272,8 +272,9 @@ export default function PrintPage() {
     <div className="h-screen flex flex-col bg-zinc-950">
       {/* Top bar */}
       <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 gap-4">
-        <Link href="/" className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
-          ← Designer
+        <Link href="/" className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
+          <img src="/logo.svg" alt="" className="w-5 h-5" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
+          Label Wrangler
         </Link>
         <div className="w-px h-6 bg-zinc-700" />
         <h1 className="text-lg font-semibold text-white">Print Labels</h1>
@@ -289,7 +290,7 @@ export default function PrintPage() {
             {designs.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <p className="text-zinc-400 text-sm mb-4">No saved labels yet</p>
+                <p className="text-zinc-400 text-sm mb-4">No labels wrangled yet</p>
                 <Link
                   href="/"
                   className="inline-block px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm rounded-md"

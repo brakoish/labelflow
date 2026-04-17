@@ -65,8 +65,9 @@ export default function LabelsPage() {
       {/* Top bar */}
       <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
-            ← Designer
+          <Link href="/" className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
+            <img src="/logo.svg" alt="" className="w-5 h-5" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
+            Label Wrangler
           </Link>
           <div className="w-px h-6 bg-zinc-700" />
           <h1 className="text-lg font-semibold text-white">My Labels</h1>
@@ -86,8 +87,8 @@ export default function LabelsPage() {
         {designs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full">
             <FileText className="w-20 h-20 text-zinc-700 mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">No saved labels yet</h2>
-            <p className="text-zinc-400 mb-6">Create your first label in the Designer</p>
+            <h2 className="text-xl font-semibold text-white mb-2">This corral&apos;s empty</h2>
+            <p className="text-zinc-400 mb-6">Design your first label to get started</p>
             <Link
               href="/"
               className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors"
