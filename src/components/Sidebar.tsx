@@ -19,7 +19,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
       <div className="p-6 border-b border-gray-800">
         <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Label Wrangler" className="w-8 h-8 text-indigo-400" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
+          <img src="/logo.png" alt="Label Wrangler" className="w-8 h-8 text-indigo-400" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
           <div>
             <h1 className="text-xl font-bold text-white">Label Wrangler</h1>
             <p className="text-sm text-gray-400">Label Designer</p>

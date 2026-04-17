@@ -138,7 +138,7 @@ export default function FormatsPage() {
       {/* Top bar with navigation */}
       <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-6 gap-4">
         <Link href="/" className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
-          <img src="/logo.svg" alt="" className="w-5 h-5" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
+          <img src="/logo.png" alt="" className="w-5 h-5" style={{ filter: 'invert(55%) sepia(52%) saturate(5765%) hue-rotate(222deg) brightness(100%) contrast(93%)' }} />
           Label Wrangler
         </Link>
         <div className="w-px h-6 bg-zinc-700" />
